@@ -1,0 +1,33 @@
+# ---------- secrets ----------
+.env
+
+# ---------- python ----------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+.ipynb_checkpoints/
+
+# ---------- data and models (too big, regeneratable) ----------
+data/raw/*
+data/processed/*
+models/*
+
+# ...but keep the directories themselves in the repo
+!data/raw/.gitkeep
+!data/processed/.gitkeep
+!models/.gitkeep
+
+# ---------- editor / OS ----------
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.swp
+!data/raw/_metadata.json

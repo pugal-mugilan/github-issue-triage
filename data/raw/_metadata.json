@@ -1,0 +1,11 @@
+{
+  "scraped_at": "2026-06-23T13:24:32.943406+00:00",
+  "since_date": "2024-12-30T13:24:32.942460+00:00",
+  "per_repo_counts": {
+    "huggingface/transformers": 10823,
+    "pytorch/pytorch": 43070,
+    "langchain-ai/langchain": 8895,
+    "fastapi/fastapi": 2182,
+    "scikit-learn/scikit-learn": 3846
+  }
+}

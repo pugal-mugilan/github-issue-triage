@@ -1,0 +1,11 @@
+# --- ingest (01) ---
+requests>=2.31.0
+python-dotenv>=1.0.0
+
+# --- clean (02) ---
+pandas>=2.0.0
+pyarrow>=14.0.0
+
+# --- features + train (03, 04) — added later, listed here so one pip install does it all ---
+scikit-learn>=1.4.0
+xgboost>=2.0.0
