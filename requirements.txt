@@ -6,6 +6,10 @@ python-dotenv>=1.0.0
 pandas>=2.0.0
 pyarrow>=14.0.0
 
-# --- features + train (03, 04) — added later, listed here so one pip install does it all ---
+# --- features + baselines (03, 04, 05) ---
 scikit-learn>=1.4.0
+numpy>=1.24.0
 xgboost>=2.0.0
+
+# --- neural network (06, 06b, 07, 08) ---
+torch>=2.1.0

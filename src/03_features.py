@@ -28,16 +28,13 @@ from sklearn.preprocessing import StandardScaler
 # ---------------------------------------------------------------------
 # Config
 # ---------------------------------------------------------------------
-RANDOM_SEED = 42
 TEST_FRACTION = 0.2
 
 # Anchor all paths to the project root (parent of src/) so the script
 # runs identically regardless of the caller's working directory.
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-PROCESSED_DIR = PROJECT_ROOT / "data" / "processed"   # cleaned_*.parquet lives here (Day 2)
+PROCESSED_DIR = PROJECT_ROOT / "data" / "processed"
 MODELS_DIR = PROJECT_ROOT / "models"
-PROCESSED_DIR.mkdir(exist_ok=True, parents=True)
-MODELS_DIR.mkdir(exist_ok=True, parents=True)
 
 # Columns we drop entirely — direct target leakage or post-filing accumulation
 DROP_AS_LEAKAGE = [
@@ -55,37 +52,9 @@ DROP_AS_LEAKAGE = [
 ]
 
 
-# =====================================================================
-# 1) LOAD
-# =====================================================================
-print(f"Loading {PROCESSED_DIR / 'cleaned_train.parquet'}...")
-df = pd.read_parquet(PROCESSED_DIR / "cleaned_train.parquet")
-df["created_at"] = pd.to_datetime(df["created_at"], utc=True)
-print(f"  {len(df):,} rows, {df['target'].mean():.1%} positive\n")
-
-
-# =====================================================================
-# 2) SPLIT FIRST — before any fitting whatsoever
-# =====================================================================
-y = df["target"]
-X = df.drop(columns=["target"])
-
-X_train, X_test, y_train, y_test = train_test_split(
-    X, y,
-    test_size=TEST_FRACTION,
-    random_state=RANDOM_SEED,
-    stratify=y,
-)
-print(f"Split (stratified, seed={RANDOM_SEED}):")
-print(f"  train: {len(X_train):,} rows ({y_train.mean():.1%} positive)")
-print(f"  test:  {len(X_test):,} rows ({y_test.mean():.1%} positive)\n")
-
-
-# =====================================================================
-# 3) DETERMINISTIC FEATURES — text + time
-#    Pure row functions. No fitting. Safe to apply to train and test
-#    identically because they don't learn anything from the data.
-# =====================================================================
+# ---------------------------------------------------------------------
+# Helper functions (no side effects, safe at module level)
+# ---------------------------------------------------------------------
 def add_text_features(d):
     d = d.copy()
     title = d["title"].fillna("")
@@ -109,26 +78,6 @@ def add_time_features(d):
     return d
 
 
-print("Text features...")
-X_train = add_text_features(X_train)
-X_test = add_text_features(X_test)
-
-print("Time features...")
-X_train = add_time_features(X_train)
-X_test = add_time_features(X_test)
-
-
-# =====================================================================
-# 4) ONE-HOT ENCODING — fit vocabulary on TRAIN only
-# =====================================================================
-print("\nOne-hot encoding (vocabulary from TRAIN only)...")
-
-train_repos = sorted(X_train["repo"].unique())
-train_assocs = sorted(X_train["author_association"].fillna("UNKNOWN").unique())
-print(f"  repos:  {train_repos}")
-print(f"  assocs: {train_assocs}")
-
-
 def apply_one_hot(d, repos, assocs):
     d = d.copy()
     for r in repos:
@@ -139,125 +88,141 @@ def apply_one_hot(d, repos, assocs):
     return d
 
 
-X_train = apply_one_hot(X_train, train_repos, train_assocs)
-X_test = apply_one_hot(X_test, train_repos, train_assocs)
+# ---------------------------------------------------------------------
+# Main
+# ---------------------------------------------------------------------
+def main(seed=42):
+    PROCESSED_DIR.mkdir(exist_ok=True, parents=True)
+    MODELS_DIR.mkdir(exist_ok=True, parents=True)
+
+    # 1) LOAD
+    print(f"Loading {PROCESSED_DIR / 'cleaned_train.parquet'}...")
+    df = pd.read_parquet(PROCESSED_DIR / "cleaned_train.parquet")
+    df["created_at"] = pd.to_datetime(df["created_at"], utc=True)
+    print(f"  {len(df):,} rows, {df['target'].mean():.1%} positive\n")
+
+    # 2) SPLIT FIRST — before any fitting whatsoever
+    y = df["target"]
+    X = df.drop(columns=["target"])
+
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y,
+        test_size=TEST_FRACTION,
+        random_state=seed,
+        stratify=y,
+    )
+    print(f"Split (stratified, seed={seed}):")
+    print(f"  train: {len(X_train):,} rows ({y_train.mean():.1%} positive)")
+    print(f"  test:  {len(X_test):,} rows ({y_test.mean():.1%} positive)\n")
+
+    # 3) DETERMINISTIC FEATURES — text + time
+    print("Text features...")
+    X_train = add_text_features(X_train)
+    X_test = add_text_features(X_test)
+
+    print("Time features...")
+    X_train = add_time_features(X_train)
+    X_test = add_time_features(X_test)
+
+    # 4) ONE-HOT ENCODING — fit vocabulary on TRAIN only
+    print("\nOne-hot encoding (vocabulary from TRAIN only)...")
+    train_repos = sorted(X_train["repo"].unique())
+    train_assocs = sorted(X_train["author_association"].fillna("UNKNOWN").unique())
+    print(f"  repos:  {train_repos}")
+    print(f"  assocs: {train_assocs}")
+
+    X_train = apply_one_hot(X_train, train_repos, train_assocs)
+    X_test = apply_one_hot(X_test, train_repos, train_assocs)
+
+    # 5) AUTHOR HISTORY FEATURE — train-only
+    print("\nAuthor history (train-only)...")
+    train_sorted = X_train.sort_values("created_at").copy()
+    train_sorted["author_prior_count"] = train_sorted.groupby("user_login").cumcount()
+    train_sorted["author_count_through"] = train_sorted["author_prior_count"] + 1
+
+    X_train = X_train.join(train_sorted[["author_prior_count"]])
+
+    lookup = (
+        train_sorted[["user_login", "created_at", "author_count_through"]]
+        .sort_values("created_at")
+    )
+    test_sorted = (
+        X_test.sort_values("created_at")
+        .reset_index()
+        .rename(columns={"index": "_orig_idx"})
+    )
+
+    merged = pd.merge_asof(
+        test_sorted,
+        lookup,
+        on="created_at",
+        by="user_login",
+        direction="backward",
+    )
+    merged["author_prior_count"] = merged["author_count_through"].fillna(0).astype(int)
+    X_test["author_prior_count"] = merged.set_index("_orig_idx")["author_prior_count"]
+
+    print(f"  train author_prior_count: "
+          f"min={X_train['author_prior_count'].min()}, "
+          f"mean={X_train['author_prior_count'].mean():.1f}, "
+          f"max={X_train['author_prior_count'].max()}")
+    print(f"  test  author_prior_count: "
+          f"min={X_test['author_prior_count'].min()}, "
+          f"mean={X_test['author_prior_count'].mean():.1f}, "
+          f"max={X_test['author_prior_count'].max()}")
+
+    # 6) FINAL FEATURE SELECTION
+    print("\nSelecting final feature columns...")
+    raw_drop = [
+        "title", "body", "user_login", "repo", "author_association", "created_at",
+    ] + DROP_AS_LEAKAGE
+
+    X_train_features = X_train.drop(columns=[c for c in raw_drop if c in X_train.columns])
+    X_test_features = X_test.drop(columns=[c for c in raw_drop if c in X_test.columns])
+    X_test_features = X_test_features[X_train_features.columns]
+
+    print(f"  feature count: {X_train_features.shape[1]}")
+    print(f"  features: {list(X_train_features.columns)}")
+
+    # 7) SCALING — fit on TRAIN only
+    print("\nScaling magnitude columns (fit on TRAIN only)...")
+    magnitude_cols = [c for c in [
+        "title_length", "body_length", "body_word_count",
+        "hour_of_day", "day_of_week", "month", "author_prior_count",
+    ] if c in X_train_features.columns]
+    print(f"  scaling: {magnitude_cols}")
+
+    scaler = StandardScaler()
+    X_train_features[magnitude_cols] = scaler.fit_transform(X_train_features[magnitude_cols])
+    X_test_features[magnitude_cols] = scaler.transform(X_test_features[magnitude_cols])
+
+    # 8) SAVE
+    print("\nSaving artifacts...")
+    X_train_features.to_parquet(PROCESSED_DIR / "X_train.parquet")
+    X_test_features.to_parquet(PROCESSED_DIR / "X_test.parquet")
+    y_train.to_frame("target").to_parquet(PROCESSED_DIR / "y_train.parquet")
+    y_test.to_frame("target").to_parquet(PROCESSED_DIR / "y_test.parquet")
+
+    with open(MODELS_DIR / "scaler.pkl", "wb") as f:
+        pickle.dump(scaler, f)
+
+    with open(MODELS_DIR / "encoders.pkl", "wb") as f:
+        pickle.dump({
+            "train_repos": train_repos,
+            "train_assocs": train_assocs,
+            "magnitude_cols": magnitude_cols,
+            "feature_order": list(X_train_features.columns),
+        }, f)
+
+    train_sorted[["user_login", "created_at", "author_count_through"]].to_parquet(
+        MODELS_DIR / "author_history_lookup.parquet"
+    )
+
+    print(f"\n  X_train: {X_train_features.shape}")
+    print(f"  X_test:  {X_test_features.shape}")
+    print(f"  artifacts: {PROCESSED_DIR}/, {MODELS_DIR}/")
+    print("\nDone.")
 
 
-# =====================================================================
-# 5) AUTHOR HISTORY FEATURE — train-only, with merge_asof lookup for test
-#    For each row, "author_prior_count" = number of issues this author
-#    filed earlier in the TRAINING set. Test rows look up the training
-#    side at their own created_at. No test labels enter the feature.
-# =====================================================================
-print("\nAuthor history (train-only)...")
-
-# (a) Train: sort by time, then cumcount within each author = count of prior train rows
-train_sorted = X_train.sort_values("created_at").copy()
-train_sorted["author_prior_count"] = train_sorted.groupby("user_login").cumcount()
-# "count_through" = cumcount + 1 = total train rows of this author up to AND including this row.
-# This is the value we read from the lookup for test rows.
-train_sorted["author_count_through"] = train_sorted["author_prior_count"] + 1
-
-# Attach the train feature back to X_train by joining on index
-X_train = X_train.join(train_sorted[["author_prior_count"]])
-
-# (b) Test: for each test row, find the most recent prior train row of the same author
-lookup = (
-    train_sorted[["user_login", "created_at", "author_count_through"]]
-    .sort_values("created_at")
-)
-test_sorted = (
-    X_test.sort_values("created_at")
-    .reset_index()
-    .rename(columns={"index": "_orig_idx"})
-)
-
-merged = pd.merge_asof(
-    test_sorted,
-    lookup,
-    on="created_at",
-    by="user_login",
-    direction="backward",
-)
-# Authors never seen in training → 0 prior issues
-merged["author_prior_count"] = merged["author_count_through"].fillna(0).astype(int)
-
-# Reattach to X_test, preserving original index
-X_test["author_prior_count"] = merged.set_index("_orig_idx")["author_prior_count"]
-
-print(f"  train author_prior_count: "
-      f"min={X_train['author_prior_count'].min()}, "
-      f"mean={X_train['author_prior_count'].mean():.1f}, "
-      f"max={X_train['author_prior_count'].max()}")
-print(f"  test  author_prior_count: "
-      f"min={X_test['author_prior_count'].min()}, "
-      f"mean={X_test['author_prior_count'].mean():.1f}, "
-      f"max={X_test['author_prior_count'].max()}")
-
-
-# =====================================================================
-# 6) FINAL FEATURE SELECTION — drop raw columns, lock column order
-# =====================================================================
-print("\nSelecting final feature columns...")
-
-raw_drop = [
-    "title", "body", "user_login", "repo", "author_association", "created_at",
-] + DROP_AS_LEAKAGE
-
-X_train_features = X_train.drop(columns=[c for c in raw_drop if c in X_train.columns])
-X_test_features = X_test.drop(columns=[c for c in raw_drop if c in X_test.columns])
-# Enforce identical column order between train and test
-X_test_features = X_test_features[X_train_features.columns]
-
-print(f"  feature count: {X_train_features.shape[1]}")
-print(f"  features: {list(X_train_features.columns)}")
-
-
-# =====================================================================
-# 7) SCALING — fit on TRAIN only, then transform both
-#    Only magnitude columns are scaled; binary 0/1 columns don't need it.
-# =====================================================================
-print("\nScaling magnitude columns (fit on TRAIN only)...")
-
-magnitude_cols = [c for c in [
-    "title_length", "body_length", "body_word_count",
-    "hour_of_day", "day_of_week", "month", "author_prior_count",
-] if c in X_train_features.columns]
-print(f"  scaling: {magnitude_cols}")
-
-scaler = StandardScaler()
-X_train_features[magnitude_cols] = scaler.fit_transform(X_train_features[magnitude_cols])
-X_test_features[magnitude_cols] = scaler.transform(X_test_features[magnitude_cols])
-
-
-# =====================================================================
-# 8) SAVE
-# =====================================================================
-print("\nSaving artifacts...")
-
-X_train_features.to_parquet(PROCESSED_DIR / "X_train.parquet")
-X_test_features.to_parquet(PROCESSED_DIR / "X_test.parquet")
-y_train.to_frame("target").to_parquet(PROCESSED_DIR / "y_train.parquet")
-y_test.to_frame("target").to_parquet(PROCESSED_DIR / "y_test.parquet")
-
-with open(MODELS_DIR / "scaler.pkl", "wb") as f:
-    pickle.dump(scaler, f)
-
-with open(MODELS_DIR / "encoders.pkl", "wb") as f:
-    pickle.dump({
-        "train_repos": train_repos,
-        "train_assocs": train_assocs,
-        "magnitude_cols": magnitude_cols,
-        "feature_order": list(X_train_features.columns),
-    }, f)
-
-# Author lookup table — used at inference time to compute author_prior_count
-# for brand-new issues (the Phase 2 agent will need this).
-train_sorted[["user_login", "created_at", "author_count_through"]].to_parquet(
-    MODELS_DIR / "author_history_lookup.parquet"
-)
-
-print(f"\n  X_train: {X_train_features.shape}")
-print(f"  X_test:  {X_test_features.shape}")
-print(f"  artifacts: {PROCESSED_DIR}/, {MODELS_DIR}/")
-print("\nDone.")
+if __name__ == "__main__":
+    main()
