@@ -13,3 +13,6 @@ xgboost>=2.0.0
 
 # --- neural network (06, 06b, 07, 08) ---
 torch>=2.1.0
+
+fastapi==0.139.0
+uvicorn==0.51.0

@@ -1,0 +1,443 @@
+{
+  "description": "Frozen golden test set for regression testing. DO NOT MODIFY.",
+  "generated_by": "generate_golden_set.py",
+  "n_issues": 25,
+  "golden_metrics": {
+    "f1": 0.444444,
+    "precision": 0.352941,
+    "recall": 0.6,
+    "n_positive": 10,
+    "n_negative": 15
+  },
+  "regression_thresholds": {
+    "f1_floor": 0.39,
+    "note": "F1 must stay above this floor. Tolerance of 0.05 accounts for floating-point differences across platforms."
+  },
+  "issues": [
+    {
+      "raw_input": {
+        "title": "Local pretrained models cannot be loaded with multithreading",
+        "body": "### System Info\n\n- `transformers` version: 4.56.1\n- Platform: Linux-6.8.0-85-generic-x86_64-with-glibc2.39\n- Python version: 3.12.11\n- Huggingface_hub version: 0.34.4\n- Safetensors version: 0.5.3\n- Accelerate version: 1.8.0\n- Accelerate config:    not found\n- DeepSpeed version: not installed\n- PyTorch version (accelerator?): 2.7.1 (CUDA)\n- Tensorflow version (GPU?): not installed (NA)\n- Flax version (CPU?/GPU?/TPU?): not installed (NA)\n- Jax version: not installed\n- JaxLib version: not installed\n- Using distributed or parallel set-up in script?: Parallel\n- Using GPU in script?: Yes\n- GPU type: NVIDIA GeForce RTX 3090\n\n### Who can help?\n\n@Cyrilvallez \n\n### Information\n\n- [ ] The official example scripts\n- [x] My own modified scripts\n\n### Tasks\n\n- [ ] An officially supported task in the `examples` folder (such as GLUE/SQuAD, ...)\n- [x] My own task or dataset (give details below)\n\n### Reproduction\n\nSimplified script to reproduce:\n\n```python\nimport random\nimport torch\nimport traceback\nimport transformers\nfrom concurrent.futures import ThreadPoolExecutor\n\n\nmodel_class = transformers.T5ForConditionalGeneration\n\n\ndef load_model() -> None:\n\tdevice_index = random.randint(0, torch.cuda.device_count() - 1)\n\tdevice = torch.device(f'cuda:{device_index}')\n\tmodel = model_class.from_pretrained('google-t5/t5-small')\n\tprint(f'Loaded model to {model.device}')\n\ttry:\n\t\tmodel.to(device)\n\t\tprint(f'Moved model to {device}')\n\texcept:\n\t\tprint(f'Failed to move model to {device}')\n\t\ttraceback.print_exc()\n\n\nif __name__ == '__main__':\n\twith ThreadPoolExecutor(max_workers=torch.cuda.device_count()) as executor:\n\t\tfutures = [executor.submit(load_model) for _ in range(10)]\n\t\tfor future in futures:\n\t\t\tfuture.result()\n```\n\nHere I use a locally cached Hub model, but in my actual usage, each threads loads a different checkpoint stored locally. Anyway, a no-data error will be raised:\n```\nSome weights of T5ForConditionalGeneration were not initialized from the model checkpoint at google-t5/t5-small and a",
+        "repo": "huggingface/transformers",
+        "author_association": "NONE",
+        "user_login": "Crissium",
+        "created_at": "2025-10-22 10:15:57+00:00"
+      },
+      "true_label": 1,
+      "expected": {
+        "predicted_class": "close_within_7d",
+        "probability": 0.574192,
+        "confidence_band": "low"
+      },
+      "index": 859
+    },
+    {
+      "raw_input": {
+        "title": "Processor multiprocessing error when load custom processor",
+        "body": "### System Info\n\n- `transformers` version: 4.51.1\n- Platform: Linux-5.4.0-144-generic-x86_64-with-glibc2.31\n- Python version: 3.10.0\n- Huggingface_hub version: 0.30.2\n- Safetensors version: 0.5.3\n- Accelerate version: 1.6.0\n- Accelerate config:    not found\n- DeepSpeed version: 0.16.5\n- PyTorch version (GPU?): 2.6.0+cu124 (True)\n- Tensorflow version (GPU?): not installed (NA)\n- Flax version (CPU?/GPU?/TPU?): not installed (NA)\n- Jax version: not installed\n- JaxLib version: not installed\n- Using distributed or parallel set-up in script?: <fill in>\n- Using GPU in script?: <fill in>\n- GPU type: NVIDIA A800 80GB PCIe\n\n### Who can help?\n\n@zucchini-nlp  @ArthurZucker\n\n### Information\n\n- [ ] The official example scripts\n- [x] My own modified scripts\n\n### Tasks\n\n- [ ] An officially supported task in the `examples` folder (such as GLUE/SQuAD, ...)\n- [x] My own task or dataset (give details below)\n\n### Reproduction\n\nI made a minimized sample to replicate the problem.\n```python\nfrom datasets import Dataset\nfrom transformers import AutoProcessor\nfrom PIL import Image\nfrom io import BytesIO\nimport requests\n\n# fake dataset\nds = [\n    (\"https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/p-blog/candy.JPG\", \"What animal is on the candy?\"),\n    (\"https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/p-blog/candy.JPG\", \"What animal is on the candy?\"),\n    (\"https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/p-blog/candy.JPG\", \"What animal is on the candy?\"),\n    (\"https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/p-blog/candy.JPG\", \"What animal is on the candy?\"),\n]\n\npaths, texts = zip(*ds)\ndataset = Dataset.from_dict({\n    \"image_path\": list(paths),\n    \"text\": list(texts)\n})\n\n# load kimi_vl processor\n# fails here :[\nprocessor = AutoProcessor.from_pretrained(\"moonshotai/Kimi-VL-A3B-Thinking\", trust_remote_code=True)\n\n# works nicely for official implementation\n# processor = AutoPr",
+        "repo": "huggingface/transformers",
+        "author_association": "CONTRIBUTOR",
+        "user_login": "Kuangdd01",
+        "created_at": "2025-04-20 09:13:54+00:00"
+      },
+      "true_label": 0,
+      "expected": {
+        "predicted_class": "close_within_7d",
+        "probability": 0.582182,
+        "confidence_band": "low"
+      },
+      "index": 1774
+    },
+    {
+      "raw_input": {
+        "title": "`UnboundLocalError: cannot access local variable 'images_list'` when using Gemma 3  AutoProcessor with use_fast=True",
+        "body": "### System Info\n\n- `transformers` version: 4.50.0.dev0\n- Platform: Linux-6.13.6-100.fc40.x86_64-x86_64-with-glibc2.39\n- Python version: 3.12.9\n- Huggingface_hub version: 0.29.1\n- Safetensors version: 0.4.5\n- Accelerate version: 0.34.2\n- Accelerate config:    not found\n- DeepSpeed version: not installed\n- PyTorch version (GPU?): 2.4.0+cu124 (True)\n- Tensorflow version (GPU?): not installed (NA)\n- Flax version (CPU?/GPU?/TPU?): not installed (NA)\n- Jax version: not installed\n- JaxLib version: not installed\n- Using distributed or parallel set-up in script?: <fill in>\n- Using GPU in script?: <fill in>\n- GPU type: NVIDIA GeForce RTX 4060 Laptop GPU\n\n### Who can help?\n\n@ArthurZucker \nTerribly sorry if it's the wrong person! I hope this passes as Text Model.\n\n### Information\n\n- [ ] The official example scripts\n- [x] My own modified scripts\n\n### Tasks\n\n- [ ] An officially supported task in the `examples` folder (such as GLUE/SQuAD, ...)\n- [ ] My own task or dataset (give details below)\n\n### Reproduction\n\nUsed base code given on HF for Gemma 3(modified to local path): https://huggingface.co/google/gemma-3-4b-it#running-the-model-on-a-singlemulti-gpu\n\nAdded use_fast=True to the AutoProcessor arguments.\n\n> Using a slow image processor as `use_fast` is unset and a slow processor was saved with this model. `use_fast=True` will be the default behavior in v4.48, even if the model was saved with a slow processor. This will result in minor differences in outputs. You'll still be able to use a slow processor with `use_fast=False`.\n\n```from transformers import AutoProcessor, Gemma3ForConditionalGeneration\nfrom PIL import Image\nimport requests\nimport torch\n\nmodel_id = \"gemma-3-4b-it\"\n\nmodel = Gemma3ForConditionalGeneration.from_pretrained(\n    model_id, device_map=\"auto\"\n).eval()\n\nprocessor = AutoProcessor.from_pretrained(model_id,use_fast=True)\n\nmessages = [\n    {\n        \"role\": \"system\",\n        \"content\": [{\"type\": \"text\", \"text\": \"You are a helpful assistant.\"}]\n    },\n    {\n     ",
+        "repo": "huggingface/transformers",
+        "author_association": "CONTRIBUTOR",
+        "user_login": "ZebWilson",
+        "created_at": "2025-03-15 08:55:11+00:00"
+      },
+      "true_label": 1,
+      "expected": {
+        "predicted_class": "close_within_7d",
+        "probability": 0.585781,
+        "confidence_band": "low"
+      },
+      "index": 1981
+    },
+    {
+      "raw_input": {
+        "title": "DS3 zero3_save_16bit_model is not compatible with resume_from_checkpoint",
+        "body": "### System Info\n\n- `transformers` version: 4.48.3\n- Platform: Linux-5.4.0-148-generic-x86_64-with-glibc2.35\n- Python version: 3.11.10\n- Huggingface_hub version: 0.28.1\n- Safetensors version: 0.5.2\n- Accelerate version: 1.3.0\n- Accelerate config:    not found\n- PyTorch version (GPU?): 2.5.1+cu124 (True)\n- Tensorflow version (GPU?): not installed (NA)\n- Flax version (CPU?/GPU?/TPU?): not installed (NA)\n- Jax version: not installed\n- JaxLib version: not installed\n- Using distributed or parallel set-up in script?: <fill in>\n- Using GPU in script?: <fill in>\n- GPU type: NVIDIA A100-SXM4-80GB\n\n### Who can help?\n\n@muellerzr\n\n### Information\n\n- [x] The official example scripts\n- [ ] My own modified scripts\n\n### Tasks\n\n- [x] An officially supported task in the `examples` folder (such as GLUE/SQuAD, ...)\n- [ ] My own task or dataset (give details below)\n\n### Reproduction\n\n1. DS 3 Training with `zero3_save_16bit_model=True`\n2. Trainer saves checkpoints with 16bit safetensor format (`model-xx-of-xx.safetensors`)\n3. When try to resume using `resume_from_checkpoint`, https://github.com/huggingface/transformers/blob/e18f233f6c8cba029324e2868fb68abdaf6badf3/src/transformers/trainer.py#L2391 call `deepspeed_load_checkpoint`.\n4. `deepspeed_load_checkpoint` only supports Deepspeed checkpoint format (`bf16_zero_pp_rank_0_xx.pt`), so unable to resume\n\n### Expected behavior\n\nTrainer should detect the checkpoint type when using `resume_from_checkpoint`.",
+        "repo": "huggingface/transformers",
+        "author_association": "NONE",
+        "user_login": "starmpcc",
+        "created_at": "2025-02-21 05:56:30+00:00"
+      },
+      "true_label": 0,
+      "expected": {
+        "predicted_class": "close_within_7d",
+        "probability": 0.566744,
+        "confidence_band": "low"
+      },
+      "index": 2121
+    },
+    {
+      "raw_input": {
+        "title": "Memory leak: DTensorSpec objects from `_try_replicate_spec_for_scalar_tensor` accumulate indefinitely with FSDP2",
+        "body": "### \ud83d\udc1b Describe the bug\n\nWhen using FSDP2 (`fully_shard`), `DTensorSpec` objects created by `OpDispatcher._try_replicate_spec_for_scalar_tensor` accumulate indefinitely during training and are never freed. The function creates a new `DTensorSpec` on every call, and these objects are retained by an unknown mechanism and not released by `gc.collect()`.\n\nThe leak scales linearly with both model size (number of parameters) and training steps, and has caused notable, accumulating CPU memory consumption for us when training large models over a large number of steps.\n\n**Affected versions:** PyTorch 2.10, 2.11\n**Not affected:** PyTorch 2.8\n\n## Reproducer\n\nMinimal self-contained script \u2014 requires 1 GPU:\n\n```python\n\"\"\"torchrun --nproc-per-node=1 repro_dtensor_leak.py\"\"\"\nimport gc, tracemalloc\nimport torch\nimport torch.distributed as dist\nimport torch.nn as nn\nfrom torch.distributed.fsdp import fully_shard\n\ntracemalloc.start()\n\ndef main():\n    dist.init_process_group(backend=\"nccl\")\n\n    model = nn.Sequential(*[nn.Linear(256, 256) for _ in range(40)]).cuda()\n    for layer in model:\n        fully_shard(layer)\n    fully_shard(model)\n    optimizer = torch.optim.AdamW(model.parameters(), lr=1e-4, fused=True)\n\n    for step in range(100):\n        x = torch.randn(4, 256, device=\"cuda\")\n        loss = model(x).sum()\n        loss.backward()\n        optimizer.step()\n        optimizer.zero_grad()\n\n        if step == 10:\n            gc.collect()\n            snap1 = tracemalloc.take_snapshot()\n        if step == 60:\n            gc.collect()\n            snap2 = tracemalloc.take_snapshot()\n            print(\"Memory growth (step 10 \u2192 60):\")\n            for s in snap2.compare_to(snap1, \"lineno\")[:6]:\n                print(s)\n            from torch.distributed.tensor._dtensor_spec import DTensorSpec\n            print(f\"Live DTensorSpec objects: {sum(1 for o in gc.get_objects() if type(o) is DTensorSpec)}\")\n\n    dist.destroy_process_group()\n\nif __name__ == \"__main__\":\n    main()\n```\n\n**Output (Py",
+        "repo": "pytorch/pytorch",
+        "author_association": "CONTRIBUTOR",
+        "user_login": "ducksoup",
+        "created_at": "2026-04-28 17:54:12+00:00"
+      },
+      "true_label": 1,
+      "expected": {
+        "predicted_class": "close_within_7d",
+        "probability": 0.531516,
+        "confidence_band": "low"
+      },
+      "index": 2905
+    },
+    {
+      "raw_input": {
+        "title": "float32/16/bf16 NaN/Inf \u2192 int: CPU and GPU disagree",
+        "body": "### \ud83d\udc1b Describe the bug\n\n```\nimport torch\n\ncases = [\n    (float(\"nan\"),  torch.int32,  \"float32(nan)  -> int32\"),\n    (float(\"inf\"),  torch.int32,  \"float32(inf)  -> int32\"),\n    (float(\"inf\"),  torch.int64,  \"float32(inf)  -> int64\"),\n]\n\nfor val, dtype, name in cases:\n    x = torch.tensor(val, dtype=torch.float32)\n    cpu_v = x.to(dtype).item()\n    gpu_v = x.cuda().to(dtype).cpu().item()\n    print(f\"{name}:  CPU={cpu_v}  GPU={gpu_v}  -> {'BUG' if cpu_v != gpu_v else 'ok'}\")\n```\n\n### Versions\n\nfloat32(nan)  -> int32:  CPU=-2147483648  GPU=0  -> BUG\nfloat32(inf)  -> int32:  CPU=-2147483648  GPU=2147483647  -> BUG\nfloat32(inf)  -> int64:  CPU=-9223372036854775808  GPU=9223372036854775807  -> BUG\n\n2.9.0\n\ncc @ptrblck @msaroufim @eqy @jerryzh168 @tinglvv @nWEIdia @jgong5 @mingfeima @XiaobingSuper @sanchitintel @ashokei @jingxu10 @aditew01",
+        "repo": "pytorch/pytorch",
+        "author_association": "NONE",
+        "user_login": "beanduan22",
+        "created_at": "2026-04-12 00:30:04+00:00"
+      },
+      "true_label": 0,
+      "expected": {
+        "predicted_class": "close_within_7d",
+        "probability": 0.512767,
+        "confidence_band": "low"
+      },
+      "index": 3076
+    },
+    {
+      "raw_input": {
+        "title": "make_fx tracing over dist.all_reduce",
+        "body": "### \ud83d\udc1b Describe the bug\n\n```python \nimport os\n\nimport torch\nimport torch.distributed as dist\nfrom torch._guards import tracing, TracingContext\nfrom torch.fx.experimental.proxy_tensor import make_fx\nfrom torch.fx.passes.regional_inductor import regional_inductor\n\n\nos.environ.setdefault(\"MASTER_ADDR\", \"127.0.0.1\")\nos.environ.setdefault(\"MASTER_PORT\", \"29500\")\nos.environ.setdefault(\"NCCL_SOCKET_IFNAME\", \"lo\")\n\ntorch.cuda.set_device(\"cuda:0\")\ndist.init_process_group(\n    \"cpu:gloo,cuda:nccl\",\n    rank=0,\n    world_size=1,\n    device_id=torch.device(\"cuda:0\"),\n)\n\n\ndef f(t):\n    t = t.clone()\n    dist.all_reduce(t)\n    return t + 1\n\n\ngm = make_fx(f)(torch.ones(4, device=\"cuda\"))\nprint(\"=== make_fx graph ===\")\nprint(gm.code)\n\nfor node in gm.graph.nodes:\n    if node.op not in (\"placeholder\", \"output\"):\n        node.meta.setdefault(\"custom\", {})[\"compile_with_inductor\"] = {\"inductor_configs\": {}}\n\nfake_mode = next(\n    node.meta[\"val\"].fake_mode\n    for node in gm.graph.nodes\n    if node.op == \"placeholder\" and isinstance(node.meta.get(\"val\"), torch.Tensor)\n)\n\nprint(\"=== regional_inductor ===\")\nwith tracing(TracingContext(fake_mode)):\n    regional_inductor(gm)\n```\nThis crashes with: \n```\nNCCL version 2.29.3+cuda12.9\n=== make_fx graph ===\n\n\n\ndef forward(self, t_1):\n    clone = torch.ops.aten.clone.default(t_1);  t_1 = None\n    _torchbind_obj0 = self._torchbind_obj0\n    _torchbind_obj1 = self._torchbind_obj1\n    allreduce_ = torch.ops.c10d.allreduce_.default([clone], _torchbind_obj0, _torchbind_obj1, None, False);  clone = _torchbind_obj0 = _torchbind_obj1 = None\n    getitem = allreduce_[0]\n    getitem_1 = getitem[0];  getitem = None\n    getitem_2 = allreduce_[1];  allreduce_ = getitem_2 = None\n    add = torch.ops.aten.add.Tensor(getitem_1, 1);  getitem_1 = None\n    return add\n    \n=== regional_inductor ===\n[rank0]: Traceback (most recent call last):\n[rank0]:   File \"/data/users/tmanlaibaatar/rigi/tmp_makefx_allreduce_repro.py\", line 45, in <module>\n[rank0]:     regional_induct",
+        "repo": "pytorch/pytorch",
+        "author_association": "CONTRIBUTOR",
+        "user_login": "tugsbayasgalan",
+        "created_at": "2026-04-10 15:29:09+00:00"
+      },
+      "true_label": 0,
+      "expected": {
+        "predicted_class": "close_within_7d",
+        "probability": 0.524046,
+        "confidence_band": "low"
+      },
+      "index": 3215
+    },
+    {
+      "raw_input": {
+        "title": "DISABLED test_div7_xpu (__main__.GPUTests)",
+        "body": "Platforms: xpu\n\nThis test was disabled because it is failing on main branch ([recent examples](https://torch-ci.com/failure?failureCaptures=%5B%22test%2Finductor%2Ftest_compile_subprocess.py%3A%3AGPUTests%3A%3Atest_div7_xpu%22%5D)).\n\ncc @mruberry @chauhang @penguinwu @voznesenskym @EikanWang @jgong5 @Guobing-Chen @XiaobingSuper @zhuhaozhe @blzheng @wenzhe-nrv @jiayisunx @ipiszy @kadeng @muchulee8 @amjames @aakhundov @coconutruben @jataylo @gujinghui @fengyuan14",
+        "repo": "pytorch/pytorch",
+        "author_association": "COLLABORATOR",
+        "user_login": "guangyey",
+        "created_at": "2026-03-04 07:33:52+00:00"
+      },
+      "true_label": 0,
+      "expected": {
+        "predicted_class": "close_within_7d",
+        "probability": 0.597524,
+        "confidence_band": "low"
+      },
+      "index": 3611
+    },
+    {
+      "raw_input": {
+        "title": "Flight Recoder default buffer size is not consistent",
+        "body": "### \ud83d\udc1b Describe the bug\n\nCurrently flight recoder is opened by default ,  but the buffer size default value in here: https://github.com/pytorch/pytorch/blob/release/2.9/torch/csrc/distributed/c10d/FlightRecorder.hpp#L100 is not consistent with the value in ProcessGroupNCCL:  https://github.com/pytorch/pytorch/blob/release/2.9/torch/csrc/distributed/c10d/ProcessGroupNCCL.cpp#L908\n\n### Versions\n\nPyTorch version: 2.9.0+cu128\nIs debug build: False\nCUDA used to build PyTorch: 12.8\nROCM used to build PyTorch: N/A\n\nOS: Ubuntu 20.04.6 LTS (x86_64)\nGCC version: (Ubuntu 9.4.0-1ubuntu1~20.04.2) 9.4.0\nClang version: 10.0.0-4ubuntu1\nCMake version: version 3.16.3\nLibc version: glibc-2.31\n\nPython version: 3.10.18 (main, Jun  5 2025, 13:14:17) [GCC 11.2.0] (64-bit runtime)\nPython platform: Linux-5.13.0-52-generic-x86_64-with-glibc2.31\nIs CUDA available: True\nCUDA runtime version: Could not collect\nGPU models and configuration:\nGPU 0: NVIDIA A100-SXM4-80GB\nGPU 1: NVIDIA A100-SXM4-80GB\nGPU 2: NVIDIA A100-SXM4-80GB\nGPU 3: NVIDIA A100-SXM4-80GB\nGPU 4: NVIDIA A100-SXM4-80GB\nGPU 5: NVIDIA A100-SXM4-80GB\nGPU 6: NVIDIA A100-SXM4-80GB\nGPU 7: NVIDIA A100-SXM4-80GB\n\nNvidia driver version: 570.172.08\ncuDNN version: Could not collect\nHIP runtime version: N/A\nMIOpen runtime version: N/A\nIs XNNPACK available: True\n\nVersions of relevant libraries:\n[pip3] mypy_extensions==1.1.0\n[pip3] numpy==2.1.2\n[pip3] pytorch-triton==3.5.0+git7416ffcb\n[pip3] torch==2.9.0+cu128\n[pip3] torchaudio==2.8.0+cu128\n[pip3] torchdata==0.11.0\n[pip3] torchvision==0.23.0+cu128\n[conda] numpy                       2.1.2              pypi_0           pypi\n[conda] pytorch-triton              3.5.0+git7416ffcb  pypi_0           pypi\n[conda] torch                       2.9.0+cu128        pypi_0           pypi\n[conda] torchaudio                  2.8.0+cu128        pypi_0           pypi\n[conda] torchdata                   0.11.0             pypi_0           pypi\n[conda] torchvision                 0.23.0+cu128       pypi_0           ",
+        "repo": "pytorch/pytorch",
+        "author_association": "CONTRIBUTOR",
+        "user_login": "HOOLoLo",
+        "created_at": "2026-01-20 08:47:27+00:00"
+      },
+      "true_label": 0,
+      "expected": {
+        "predicted_class": "close_within_7d",
+        "probability": 0.529807,
+        "confidence_band": "low"
+      },
+      "index": 4105
+    },
+    {
+      "raw_input": {
+        "title": "DISABLED test_view_as_complex_xpu (__main__.TestViewOpsXPU)",
+        "body": "Platforms: xpu\n\nThis test was disabled because it is failing on main branch ([recent examples](https://torch-ci.com/failure?failureCaptures=%5B%22test%2Ftest_view_ops.py%3A%3ATestViewOpsXPU%3A%3Atest_view_as_complex_xpu%22%5D)).\n\ncc @gujinghui @EikanWang @fengyuan14 @guangyey",
+        "repo": "pytorch/pytorch",
+        "author_association": "COLLABORATOR",
+        "user_login": "etaf",
+        "created_at": "2025-12-19 05:24:30+00:00"
+      },
+      "true_label": 0,
+      "expected": {
+        "predicted_class": "stays_open_past_7d",
+        "probability": 0.215369,
+        "confidence_band": "high"
+      },
+      "index": 4407
+    },
+    {
+      "raw_input": {
+        "title": "vLLM PyTorch Fullgraph Test and PyTorch Fullgraph Smoke Test error with aot_compile failing PyTorch 2.10",
+        "body": "CI Run: https://buildkite.com/vllm/ci/builds/43419  - 14.12.2025\nCI Run: https://buildkite.com/vllm/ci/builds/43612 - 15.12.2025\n\nvLLM PyTorch Fullgraph Test and PyTorch Fullgraph Smoke Test \n\n\n<details> \n\n```\n\n[2025-12-13T19:46:44Z] _ test_custom_compile_config[compilation_config5-facebook/opt-125m-model_kwargs5] _\n--\n[2025-12-13T19:46:44Z]\n[2025-12-13T19:46:44Z] >   run_model(compilation_config, model, **model_kwargs)\n[2025-12-13T19:46:44Z]\n[2025-12-13T19:46:44Z] compile/fullgraph/test_full_graph.py:182:\n[2025-12-13T19:46:44Z] _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _\n[2025-12-13T19:46:44Z] compile/fullgraph/test_full_graph.py:239: in run_model\n[2025-12-13T19:46:44Z]     llm = LLM(\n[2025-12-13T19:46:44Z] /usr/local/lib/python3.12/dist-packages/vllm/entrypoints/llm.py:351: in __init__\n[2025-12-13T19:46:44Z]     self.llm_engine = LLMEngine.from_engine_args(\n[2025-12-13T19:46:44Z] /usr/local/lib/python3.12/dist-packages/vllm/v1/engine/llm_engine.py:183: in from_engine_args\n[2025-12-13T19:46:44Z]     return cls(\n[2025-12-13T19:46:44Z] /usr/local/lib/python3.12/dist-packages/vllm/v1/engine/llm_engine.py:109: in __init__\n[2025-12-13T19:46:44Z]     self.engine_core = EngineCoreClient.make_client(\n[2025-12-13T19:46:44Z] /usr/local/lib/python3.12/dist-packages/vllm/v1/engine/core_client.py:93: in make_client\n[2025-12-13T19:46:44Z]     return SyncMPClient(vllm_config, executor_class, log_stats)\n[2025-12-13T19:46:44Z] /usr/local/lib/python3.12/dist-packages/vllm/v1/engine/core_client.py:648: in __init__\n[2025-12-13T19:46:44Z]     super().__init__(\n[2025-12-13T19:46:44Z] /usr/local/lib/python3.12/dist-packages/vllm/v1/engine/core_client.py:477: in __init__\n[2025-12-13T19:46:44Z]     with launch_core_engines(vllm_config, executor_class, log_stats) as (\n[2025-12-13T19:46:44Z] /usr/lib/python3.12/contextlib.py:144: in __exit__\n[2025-12-13T19:46:44Z]     next(self.gen)\n[2025-12-13T19:46:44Z] /usr/local/lib/python3.12/dist-packages/vllm/v1/eng",
+        "repo": "pytorch/pytorch",
+        "author_association": "CONTRIBUTOR",
+        "user_login": "zou3519",
+        "created_at": "2025-12-16 00:27:57+00:00"
+      },
+      "true_label": 1,
+      "expected": {
+        "predicted_class": "close_within_7d",
+        "probability": 0.551015,
+        "confidence_band": "low"
+      },
+      "index": 4451
+    },
+    {
+      "raw_input": {
+        "title": "Test: TestLinalg.test_tf32_tunableop",
+        "body": "<!-- ROCM-SKIP:test/test_linalg.py::TestLinalg::test_tf32_tunableop -->\n\n## Context\n- Source file: `test/test_linalg.py`\n- Test class: `TestLinalg`\n- Test name: `test_tf32_tunableop`\n- Defined at line: 5599\n- Parent issue: #168756\n- Code reference: https://github.com/pytorch/pytorch/blob/main/test/test_linalg.py\n\n\ncc @sunway513 @jithunnair-amd @pruthvistony @ROCmSupport @jataylo @hongxiayang @naromero77amd @pragupta @jerrymannil @xinyazhang @jianyuh @nikitaved @mruberry @walterddr @xwang233 @Lezcano @dllehr-amd",
+        "repo": "pytorch/pytorch",
+        "author_association": "COLLABORATOR",
+        "user_login": "jeffdaily",
+        "created_at": "2025-11-22 01:08:01+00:00"
+      },
+      "true_label": 0,
+      "expected": {
+        "predicted_class": "stays_open_past_7d",
+        "probability": 0.009305,
+        "confidence_band": "high"
+      },
+      "index": 4759
+    },
+    {
+      "raw_input": {
+        "title": "[CD] nvshem-3.3.9 wheels for aarch64 is not manylinux2_28 compliant",
+        "body": "### \ud83d\udc1b Describe the bug\n\nObserving following errors in downstream libraries torchvision and fbgemm: https://hud.pytorch.org/hud/pytorch/vision/nightly/1?per_page=50\n\n```\n+ conda run -p /__w/_temp/conda_environment_16907649430 python setup.py clean\nTraceback (most recent call last):\n  File \"/__w/vision/vision/pytorch/vision/setup.py\", line 12, in <module>\n    import torch\n  File \"/__w/_temp/conda_environment_16907649430/lib/python3.12/site-packages/torch/__init__.py\", line 415, in <module>\n    from torch._C import *  # noqa: F403\n    ^^^^^^^^^^^^^^^^^^^^^^\nImportError: /lib64/libm.so.6: version `GLIBC_2.29' not found (required by /usr/local/cuda/lib64/libnvshmem_host.so.3)\n\nERROR conda.cli.main_run:execute(125): `conda run python setup.py clean` failed. (See above for error)\n```\n\nSeeing same error during aarch64 builds of torch:\n```\n2025-08-12T08:05:02.1150042Z [4330/6286] Linking CXX shared library lib/libc10_cuda.so\u001b[K\n2025-08-12T08:05:02.1150370Z Warning: Unused direct dependencies:\n2025-08-12T08:05:02.1150611Z \t/lib64/libm.so.6\n2025-08-12T08:05:02.1150734Z \n.....\n2025-08-12T08:07:04.4566964Z [4335/6286] Linking CXX shared library lib/libtorch_nvshmem.so\u001b[K\n2025-08-12T08:07:04.4567494Z [4336/6286] Linking CXX shared library lib/libtorch_nvshmem.so\u001b[K\n2025-08-12T08:07:04.4568225Z Warning:      21438:\t/lib64/libm.so.6: error: version lookup error: version `GLIBC_2.29' not found (required by /usr/local/cuda/lib64/libnvshmem_host.so.3) (continued)\n2025-08-12T08:07:04.4569171Z lib/libtorch_nvshmem.so: /lib64/libm.so.6: version `GLIBC_2.29' not found (required by /usr/local/cuda/lib64/libnvshmem_host.so.3)\n2025-08-12T08:07:04.4569705Z Unused direct dependencies:\n2025-08-12T08:07:04.4569915Z \t/lib64/libm.so.6\n2025-08-12T08:07:04.4570027Z \n``` \n\nPossibly related to this PR: https://github.com/pytorch/pytorch/pull/159907 that landed last week\n\n### Versions\n\n2.9.0\n\ncc @ezyang @gchanan @zou3519 @kadeng @msaroufim",
+        "repo": "pytorch/pytorch",
+        "author_association": "COLLABORATOR",
+        "user_login": "atalman",
+        "created_at": "2025-08-12 16:39:55+00:00"
+      },
+      "true_label": 1,
+      "expected": {
+        "predicted_class": "close_within_7d",
+        "probability": 0.564038,
+        "confidence_band": "low"
+      },
+      "index": 6247
+    },
+    {
+      "raw_input": {
+        "title": "torch.compile causes incorrect output with torch.distributed.all_gather",
+        "body": "### \ud83d\udc1b Describe the bug\n\n```python\nimport os\nimport torch\nimport torch.nn as nn\nimport torch.nn.functional as F\nimport torch.distributed as dist\n\nos.environ[\"TORCHINDUCTOR_FX_GRAPH_CACHE\"] = \"1\"\nos.environ[\"TORCHINDUCTOR_CACHE_DIR\"] = f\"/root/workspace/gather_test_cache\"# /app/cache/cache_vace\ntorch._inductor.config.reorder_for_compute_comm_overlap = True\n\n\ndef all_gather(input_: torch.Tensor, dim: int = 0, separate_tensors: bool = False):\n    world_size = torch.distributed.get_world_size()\n    # Bypass the function if we are using only 1 GPU.\n    if world_size == 1:\n        return input_\n    assert (\n        -input_.dim() <= dim < input_.dim()\n    ), f\"Invalid dim ({dim}) for input tensor with shape {input_.size()}\"\n    if dim < 0:\n        # Convert negative dim to positive.\n        dim += input_.dim()\n    # Allocate output tensor.\n    input_size = list(input_.size())\n    input_size[0] *= world_size\n    output_tensor = torch.empty(\n        input_size, dtype=input_.dtype, device=input_.device\n    )\n    # All-gather.\n    torch.distributed.all_gather_into_tensor(\n        output_tensor, input_, group=None\n    )\n    if dim != 0:\n        input_size[0] //= world_size\n        output_tensor = output_tensor.reshape([world_size, ] + input_size)\n        output_tensor = output_tensor.movedim(0, dim)\n\n    if separate_tensors:\n        tensor_list = [\n            output_tensor.view(-1)\n            .narrow(0, input_.numel() * i, input_.numel())\n            .view_as(input_)\n            for i in range(world_size)\n        ]\n        return tensor_list\n    else:\n        input_size = list(input_.size())\n        input_size[dim] = input_size[dim] * world_size\n        # Reshape\n        output_tensor = output_tensor.reshape(input_size)\n        return output_tensor\n\nclass test_model(nn.Module):\n    def __init__(self):\n        super().__init__()\n        self.heads = 12\n\n    @torch.no_grad()\n    def __call__(\n        self,\n        data\n\n    ) -> torch.Tensor:\n        data_0 = all_gather(data, di",
+        "repo": "pytorch/pytorch",
+        "author_association": "NONE",
+        "user_login": "songh11",
+        "created_at": "2025-07-29 07:36:14+00:00"
+      },
+      "true_label": 0,
+      "expected": {
+        "predicted_class": "close_within_7d",
+        "probability": 0.52485,
+        "confidence_band": "low"
+      },
+      "index": 6416
+    },
+    {
+      "raw_input": {
+        "title": "[Windows UT] CpuTests.test_fractional_max_pool2d2_cpu failed with PyTorch 2025-05-25 nightly wheel",
+        "body": "### \ud83d\udc1b Describe the bug\n\n\nReproducer:\n```\npython test\\inductor\\test_torchinductor.py CpuTests.test_fractional_max_pool2d2_cpu\n```\n\nError message:\n```\n__________________ CpuTests.test_fractional_max_pool2d2_cpu ___________________\nTraceback (most recent call last):\n  File \"C:\\ProgramData\\miniforge3\\envs\\pt_nightly\\lib\\unittest\\case.py\", line 59, in testPartExecutor\n    yield\n  File \"C:\\ProgramData\\miniforge3\\envs\\pt_nightly\\lib\\unittest\\case.py\", line 591, in run\n    self._callTestMethod(testMethod)\n  File \"C:\\ProgramData\\miniforge3\\envs\\pt_nightly\\lib\\unittest\\case.py\", line 549, in _callTestMethod\n    method()\n  File \"C:\\ProgramData\\miniforge3\\envs\\pt_nightly\\lib\\site-packages\\torch\\testing\\_internal\\common_utils.py\", line 3141, in wrapper\n    method(*args, **kwargs)\n  File \"C:\\pytorch\\test\\inductor\\test_torchinductor.py\", line 13402, in new_test\n    return value(self)\n  File \"C:\\pytorch\\test\\inductor\\test_torchinductor.py\", line 830, in wrapper\n    return fn(self, *args, **kwargs)\n  File \"C:\\pytorch\\test\\inductor\\test_torchinductor.py\", line 4872, in test_fractional_max_pool2d2\n    assertGeneratedKernelCountEqual(self, 0)\n  File \"C:\\pytorch\\test\\inductor\\test_torchinductor.py\", line 759, in assertGeneratedKernelCountEqual\n    self.assertEqual(torch._inductor.metrics.generated_kernel_count, expected)\n  File \"C:\\ProgramData\\miniforge3\\envs\\pt_nightly\\lib\\site-packages\\torch\\testing\\_internal\\common_utils.py\", line 4089, in assertEqual\n    raise error_metas.pop()[0].to_error(  # type: ignore[index]\nAssertionError: Scalars are not equal!\n\nExpected 0 but got 4.\nAbsolute difference: 4\nRelative difference: inf\n\nTo execute this test, run the following from the base repo dir:\n    python test\\inductor\\test_torchinductor.py CpuTests.test_fractional_max_pool2d2_cpu\n\nThis message can be suppressed by setting PYTORCH_PRINT_REPRO_ON_FAILURE=0\n---------------------------- Captured stdout call -----------------------------\ninline_call []\nstats [('calls_captured', 3), ('unique_graph",
+        "repo": "pytorch/pytorch",
+        "author_association": "CONTRIBUTOR",
+        "user_login": "LifengWang",
+        "created_at": "2025-05-30 01:38:47+00:00"
+      },
+      "true_label": 1,
+      "expected": {
+        "predicted_class": "close_within_7d",
+        "probability": 0.547726,
+        "confidence_band": "low"
+      },
+      "index": 7006
+    },
+    {
+      "raw_input": {
+        "title": "torch.multinomial is not deterministic for large number of input probabilities when replacement=True",
+        "body": "### \ud83d\udc1b Describe the bug\n\nHello,\n\nI think there is a bug in `torch.multinomial` which sporadically appears when the number of input probabilities is large (e.g. greater than 10k, but gets worse as number gets larger) and `replacement=True`.  I think it is also worse when the dynamic range of the probabilities is very  high - i.e. a lot very very close to zero.  I would love if this is user error, but I'm pretty sure it is not. \n\nMy guess is that it is some sort of numerical / floating point error?\n\nWhat happens is that sometimes, the nth row of the returned indices is off by 1.  e.g. in one trial, the 57th row out of 1000 might be index `57291` but in another trial it might end up as `57292` or `57290` (but never something far away like `1272`).\n\nHere is a reproducible - nb: we are on `torch==2.5.1+cu118`.  If this is fixed in another version, apologies.\n\n```\nimport torch\nimport torch.nn.functional as F\n\n\ndef run_test(\n        device: torch.device,\n        n_candidates: int,\n        n_draws: int,\n        n_trials: int,\n        replacement: bool,\n        band_width: float,\n        band_offset: float,\n        generator: torch.Generator,\n\n):\n    all_results = []\n    for _ in range(n_trials):\n        generator.manual_seed(42)\n\n        # Stand-in for some process which randomly generates logits.\n        # e.g. randomly sampling designs and running them through a classifier.\n        logits = (\n            torch.rand(n_candidates, device=device, generator=generator) * band_width\n            - band_offset\n        )\n        # convert logits to probabilities\n        probs = F.softmax(logits, dim=-1)\n\n        # draw samples\n        results = torch.multinomial(\n            probs,\n            n_draws,\n            replacement=replacement,\n            generator=generator,\n        )\n        all_results.append(results.unsqueeze(1))\n\n    # combine the samples, shape is (n_draws, n_trials)\n    results = torch.cat(all_results, dim=1)\n    errors = []\n    for nth_draw in range(n_draws):\n  ",
+        "repo": "pytorch/pytorch",
+        "author_association": "NONE",
+        "user_login": "szvsw",
+        "created_at": "2025-05-05 19:04:06+00:00"
+      },
+      "true_label": 1,
+      "expected": {
+        "predicted_class": "stays_open_past_7d",
+        "probability": 0.48873,
+        "confidence_band": "low"
+      },
+      "index": 7314
+    },
+    {
+      "raw_input": {
+        "title": "NotImplementedError: aten::_log_softmax_backward_data with SparseCUDA backend",
+        "body": "### \ud83d\udc1b Describe the bug\n\n```python\nclass NDPTrainer(Trainer):\n\n\n    def compute_loss(self, model, inputs, return_outputs=False, num_items_in_batch=None):\n        input_ids = inputs.pop(\"input_ids\")\n        attention_mask = inputs.pop(\"attention_mask\")\n        cnt_list = inputs.pop(\n            \"cnt_list\"\n        )  \n        \n        labels= inputs.pop(\"label\")\n        \n                \n        result = model(\n            input_ids=input_ids,\n            attention_mask=attention_mask,\n        )\n\n        model_logits = result.logits  # bsz x seqlen x dim\n        \n        ce_loss = CrossEntropyLoss(ignore_index=-100)\n        \n \n        loss = ce_loss(model_logits, labels)\n            \n        if return_outputs:\n            return loss, {\"logits\": model_logits}\n        else:\n            return loss\n```\n\n```bash\nTraceback (most recent call last):\n  File \"<frozen runpy>\", line 198, in _run_module_as_main\n  File \"<frozen runpy>\", line 88, in _run_code\n  File \"/mnt/dolphinfs/hdd_pool/docker/user/hadoop-aipnlp/INS/ruanjunhao04/ruanjunhao/ndp/new_version/train.py\", line 107, in <module>\n    trainer.train()\n  File \"/mnt/dolphinfs/hdd_pool/docker/user/hadoop-aipnlp/INS/ruanjunhao04/env/rjh/lib/python3.12/site-packages/transformers/trainer.py\", line 2241, in train\n    return inner_training_loop(\n           ^^^^^^^^^^^^^^^^^^^^\n  File \"/mnt/dolphinfs/hdd_pool/docker/user/hadoop-aipnlp/INS/ruanjunhao04/env/rjh/lib/python3.12/site-packages/transformers/trainer.py\", line 2548, in _inner_training_loop\n    tr_loss_step = self.training_step(model, inputs, num_items_in_batch)\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/mnt/dolphinfs/hdd_pool/docker/user/hadoop-aipnlp/INS/ruanjunhao04/env/rjh/lib/python3.12/site-packages/transformers/trainer.py\", line 3740, in training_step\n    self.accelerator.backward(loss, **kwargs)\n  File \"/mnt/dolphinfs/hdd_pool/docker/user/hadoop-aipnlp/INS/ruanjunhao04/env/rjh/lib/python3.12/site-packages/accelerate/accelerator",
+        "repo": "pytorch/pytorch",
+        "author_association": "NONE",
+        "user_login": "rangehow",
+        "created_at": "2025-03-12 14:47:42+00:00"
+      },
+      "true_label": 0,
+      "expected": {
+        "predicted_class": "close_within_7d",
+        "probability": 0.515477,
+        "confidence_band": "low"
+      },
+      "index": 7966
+    },
+    {
+      "raw_input": {
+        "title": "seg fault in aot_inductor_package on arm GPU with 2.6.0 RC",
+        "body": "### \ud83d\udc1b Describe the bug\n\nWhen running internal test for 2.6.0 RC ARM wheels (https://download.pytorch.org/whl/test/torch/) on Grace Hopper 1GPU, getting seg fault/bus errors which are happening alternating on below test\n\nReproduced errors on both CUDA and CPU wheels.\n\n```python test/inductor/test_aot_inductor_package.py  -k test_add -k cpu```\n\nError:\n```\nRunning only test/inductor/test_aot_inductor_package.py::TestAOTInductorPackage_cpu::test_add\nRunning 1 items in this shard\n\nFatal Python error: Segmentation fault\n```\n\nBacktrace:\n```\n(gdb) bt\n#0  0x0000ef67c4019c54 in std::_Sp_counted_base<(__gnu_cxx::_Lock_policy)2>::_M_release() ()\n   from /tmp/KFSXvp/data/aotinductor/model/cnxl5jak4cmycxqpoiy3wdbyygqqgbph4tl5wjzolu24zpiqo25v.so\n#1  0x0000ef67c40312f4 in torch::aot_inductor::AOTInductorModelContainer::AOTInductorModelContainer(unsigned long, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, std::optional<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > const&) ()\n   from /tmp/KFSXvp/data/aotinductor/model/cnxl5jak4cmycxqpoiy3wdbyygqqgbph4tl5wjzolu24zpiqo25v.so\n#2  0x0000ef67c4017744 in AOTInductorModelContainerCreateWithDevice ()\n   from /tmp/KFSXvp/data/aotinductor/model/cnxl5jak4cmycxqpoiy3wdbyygqqgbph4tl5wjzolu24zpiqo25v.so\n#3  0x0000ef6b33cbc464 in torch::inductor::AOTIModelContainerRunner::AOTIModelContainerRunner(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, unsigned long, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&) ()\n   from /usr/local/lib/python3.12/dist-packages/torch/lib/libtorch_cpu.so\n#4  0x0000ef6b33cbcf80 in torch::inductor::AOTIModelContainerRunnerCpu::AOTIModelContainerRunnerCpu(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, unsigned long) () from /usr/local/lib/pyth",
+        "repo": "pytorch/pytorch",
+        "author_association": "COLLABORATOR",
+        "user_login": "tinglvv",
+        "created_at": "2025-01-23 01:05:52+00:00"
+      },
+      "true_label": 0,
+      "expected": {
+        "predicted_class": "close_within_7d",
+        "probability": 0.512238,
+        "confidence_band": "low"
+      },
+      "index": 8607
+    },
+    {
+      "raw_input": {
+        "title": "CUDA unknown error",
+        "body": "Our previous environment can use GPU well, but I don't know why, something went wrong these days.\n```\npython -c \"import torch; print(torch.cuda.is_available())\"\n```\nand it returns:\n```\n/opt/conda/lib/python3.8/site-packages/torch/cuda/__init__.py:138: UserWarning: CUDA initialization: CUDA unknown error - this may be due to an incorrectly set up environment, e.g. changing env variable CUDA_VISIBLE_DEVICES after program start. Setting the available devices to be zero. (Triggered internally at ../c10/cuda/CUDAFunctions.cpp:108.)\n  return torch._C._cuda_getDeviceCount() > 0\nFalse\n```\nSome information needs to be explained:\n\n1. This environment is in a container and I don't have root privileges\n2. `nvidia-smi`\n\n![Image](https://github.com/user-attachments/assets/8c3ca5f6-3961-4641-92bd-75527c5a88a1)\n`nvcc -V`\n\n![Image](https://github.com/user-attachments/assets/855b5112-39f6-4382-9f86-f36c19abfd9f)\n\n3. pytorch version\n```Name: torch\nVersion: 2.1.0\nSummary: Tensors and Dynamic neural networks in Python with strong GPU acceleration\nHome-page: https://pytorch.org/\nAuthor: PyTorch Team\nAuthor-email: packages@pytorch.org\nLicense: BSD-3\nLocation: /opt/conda/lib/python3.8/site-packages\nRequires: filelock, fsspec, jinja2, networkx, nvidia-cublas-cu12, nvidia-cuda-cupti-cu12, nvidia-cuda-nvrtc-cu12, nvidia-cuda-runtime-cu12, nvidia-cudnn-cu12, nvidia-cufft-cu12, nvidia-curand-cu12, nvidia-cusolver-cu12, nvidia-cusparse-cu12, nvidia-nccl-cu12, nvidia-nvtx-cu12, sympy, triton, typing-extensions\nRequired-by: fastai, torchaudio, torchvision\n```\n`python -c \"import torch; print(torch.version.cuda)\"`got 12.1, but I think 12.3 should be backward compatible\n4. ~/.bashrc also Added relevant paths like\n```\nexport PATH=$PATH:/usr/local/cuda/bin\nexport CUDA_PATH=/usr/local/cuda\nexport CUDA_HOME=/usr/local/cuda\nexport LD_LIBRARY_PATH=$CUDA_HOME/lib64:$LD_LIBRARY_PATH\nexport MATHLIBS_PATH=$CUDA_PATH/lib64\n```\nWhat should I do?",
+        "repo": "pytorch/pytorch",
+        "author_association": "NONE",
+        "user_login": "leewww-code",
+        "created_at": "2025-01-15 04:40:51+00:00"
+      },
+      "true_label": 0,
+      "expected": {
+        "predicted_class": "close_within_7d",
+        "probability": 0.542548,
+        "confidence_band": "low"
+      },
+      "index": 8718
+    },
+    {
+      "raw_input": {
+        "title": "feat(langchain-classic): register `perplexity_search` in load_tools for PerplexitySearchResults",
+        "body": "## Feature Description\n\n`langchain-perplexity` ships a first-class `PerplexitySearchResults` tool (alongside `ChatPerplexity` and `PerplexitySearchRetriever`), but unlike other partner-package tools it can't be loaded by string name via `load_tools`:\n\n```python\nfrom langchain.agents import load_tools\ntools = load_tools([\"perplexity_search\"])  # raises: ValueError: Got unknown tool perplexity_search\n```\n\nThis requires users to import the class directly, which is inconsistent with how other partner integrations are surfaced (e.g. `serpapi`, `metaphor-search`, `google-search`).\n\n## Use Case\n\nMake `PerplexitySearchResults` discoverable through the canonical `load_tools` entry point so it's on equal footing with other search/retrieval tools. This is a small registration change with no new dependencies \u2014 `langchain-perplexity` is imported lazily and only when the user requests this tool by name.\n\n## Proposed Solution\n\nRegister `perplexity_search` in `libs/langchain/langchain_classic/agents/load_tools.py` with a lazy importer that raises a friendly `ImportError` (`\"Install langchain-perplexity: pip install -U langchain-perplexity\"`) if the partner package isn't installed \u2014 same pattern used for other optional partner tools.\n\nI have a working implementation ready (lint + 647 tests passing locally) at PR #37083, which was auto-closed because there was no linked issue. Filing this issue per the contributor policy and would like to be assigned (@james-pplx) so the PR can be reopened. Thanks!\n\n## Alternatives Considered\n\nUsers can currently work around this by importing `PerplexitySearchResults` directly:\n\n```python\nfrom langchain_perplexity import PerplexitySearchResults\ntools = [PerplexitySearchResults()]\n```\n\nHowever, this is inconsistent with the `load_tools` pattern used by all other search integrations and creates an uneven developer experience for users of `langchain-perplexity`.",
+        "repo": "langchain-ai/langchain",
+        "author_association": "CONTRIBUTOR",
+        "user_login": "jliounis",
+        "created_at": "2026-04-29 19:29:18+00:00"
+      },
+      "true_label": 0,
+      "expected": {
+        "predicted_class": "close_within_7d",
+        "probability": 0.560986,
+        "confidence_band": "low"
+      },
+      "index": 9029
+    },
+    {
+      "raw_input": {
+        "title": "Add AgentWeb \u2014 free business data API for AI agents (11M+ businesses, real-time discovery)",
+        "body": "**AgentWeb** \u2014 https://agentweb.live\n\nFree business data API built for AI agents. 11M+ businesses across 195 countries.\n\n**Key features:**\n- Phone, email, hours, address, geo, social for any business worldwide\n- Sub-50ms responses, prose format (60% fewer tokens than JSON)\n- **Real-time discovery**: never returns empty \u2014 finds unknown businesses from the web on demand\n- MCP server with 14 tools: `npx agentweb-mcp`\n- Agent self-install: point any agent at agentweb.live/install.md\n- Agent memory: history, favorites, profiles\n- Free: 1,000 reads/day, instant signup, no credit card\n\n**Links:**\n- Website: https://agentweb.live\n- npm: https://www.npmjs.com/package/agentweb-mcp\n- GitHub: https://github.com/zerabic/agentweb-mcp\n- Install instructions (for agents): https://agentweb.live/install.md",
+        "repo": "langchain-ai/langchain",
+        "author_association": "NONE",
+        "user_login": "zerabic",
+        "created_at": "2026-04-09 15:35:50+00:00"
+      },
+      "true_label": 0,
+      "expected": {
+        "predicted_class": "stays_open_past_7d",
+        "probability": 0.189291,
+        "confidence_band": "high"
+      },
+      "index": 9092
+    },
+    {
+      "raw_input": {
+        "title": "MCP Context Optimizer",
+        "body": "### Checked other resources\n\n- [x] This is a feature request, not a bug report or usage question.\n- [x] I added a clear and descriptive title that summarizes the feature request.\n- [x] I used the GitHub search to find a similar feature request and didn't find it.\n- [x] I checked the LangChain documentation and API reference to see if this feature already exists.\n- [x] This is not related to the langchain-community package.\n\n### Package (Required)\n\n- [x] langchain\n- [ ] langchain-openai\n- [ ] langchain-anthropic\n- [ ] langchain-classic\n- [x] langchain-core\n- [ ] langchain-model-profiles\n- [ ] langchain-tests\n- [ ] langchain-text-splitters\n- [ ] langchain-chroma\n- [ ] langchain-deepseek\n- [ ] langchain-exa\n- [ ] langchain-fireworks\n- [ ] langchain-groq\n- [ ] langchain-huggingface\n- [ ] langchain-mistralai\n- [ ] langchain-nomic\n- [ ] langchain-ollama\n- [ ] langchain-openrouter\n- [ ] langchain-perplexity\n- [ ] langchain-qdrant\n- [ ] langchain-xai\n- [ ] Other / not sure / general\n\n### Feature Description\n\nAgentic architectures face critical supply chain vulnerabilities (ShadowLeak, tool shadowing) when executing MCP tools. I propose routing LangChain's MCP stdio tool executions through a transparent local middleware proxy.\n\nI have developed `mcp-optimizer`, a global CLI utility that wraps any MCP server. It provides:\n1. Application Firewall: Prevents prompt injections and unauthorized path traversals using a Fail-Closed mechanism.\n2. Circuit Breaker: Mitigates DDoS storms on target servers during autonomous agent loop failures (state-resetting logic).\n3. L1/L2 Caching: Reduces redundant LLM token consumption.\n\nImplementation: LangChain can wrap the execution command:\n`mcp-optimizer run --target \"<original_mcp_server_command>\"`\n\nI am looking for maintainers' feedback on this security layer before submitting a formal Pull Request.\n\n### Use Case\n\nI am building autonomous agent systems that rely on the Model Context Protocol (MCP) for tool execution. Currently, there is no s",
+        "repo": "langchain-ai/langchain",
+        "author_association": "NONE",
+        "user_login": "shleder",
+        "created_at": "2026-03-16 19:13:46+00:00"
+      },
+      "true_label": 1,
+      "expected": {
+        "predicted_class": "stays_open_past_7d",
+        "probability": 0.399686,
+        "confidence_band": "medium"
+      },
+      "index": 9218
+    },
+    {
+      "raw_input": {
+        "title": "The SQL query agent can no longer display the model's thought process.",
+        "body": "### Checked other resources\n\n- [x] This is a bug, not a usage question.\n- [x] I added a clear and descriptive title that summarizes this issue.\n- [x] I used the GitHub search to find a similar question and didn't find it.\n- [x] I am sure that this is a bug in LangChain rather than my code.\n- [x] The bug is not resolved by updating to the latest stable version of LangChain (or the specific integration package).\n- [x] This is not related to the langchain-community package.\n- [x] I posted a self-contained, minimal, reproducible example. A maintainer can copy it and run it AS IS.\n\n### Package (Required)\n\n- [x] langchain\n- [ ] langchain-openai\n- [ ] langchain-anthropic\n- [ ] langchain-classic\n- [ ] langchain-core\n- [ ] langchain-cli\n- [ ] langchain-model-profiles\n- [ ] langchain-tests\n- [ ] langchain-text-splitters\n- [ ] langchain-chroma\n- [ ] langchain-deepseek\n- [ ] langchain-exa\n- [ ] langchain-fireworks\n- [ ] langchain-groq\n- [ ] langchain-huggingface\n- [ ] langchain-mistralai\n- [ ] langchain-nomic\n- [ ] langchain-ollama\n- [ ] langchain-perplexity\n- [ ] langchain-prompty\n- [ ] langchain-qdrant\n- [ ] langchain-xai\n- [x] Other / not sure / general\n\n### Example Code (Python)\n\n```python\nfrom flask import Flask, render_template, request, jsonify, session\nimport os\nfrom langchain_ollama import ChatOllama\nfrom langchain_community.utilities import SQLDatabase\nfrom langchain_community.agent_toolkits.sql.base import create_sql_agent\nfrom langchain.prompts import ChatPromptTemplate, MessagesPlaceholder\nfrom langchain.memory import ConversationBufferMemory\nimport warnings\nfrom langchain_core._api import LangChainDeprecationWarning\n```\n\n### Error Message and Stack Trace (if applicable)\n\n```shell\n\n```\n\n### Description\n\n\u60a8\u597d\uff0c\u6211\u7528create_sql_agent\u521b\u5efa\u7684\u667a\u80fd\u95ee\u7b54\u52a9\u624b\uff0c\u4e4b\u524d\u53ef\u4ee5\u5c55\u793a\u6a21\u578b\u7684\u601d\u8003\u8fc7\u7a0b\uff0c\u4f46\u662f\u4e0d\u77e5\u9053\u73b0\u5728\u66f4\u65b0\u4e86\u4ec0\u4e48\uff0c\u5bfc\u81f4\u6211\u7684\u6a21\u578b\u601d\u8003\u8fc7\u7a0b\u4e0d\u5c55\u793a\u4e86\uff0c\u53ef\u4ee5\u5e2e\u5fd9\u89e3\u7b54\u4e00\u4e0b\uff0c\u975e\u5e38\u611f\u8c22\uff01\n\n### System Info\n\nSystem Information\n------------------\n> OS:  Windows\n> OS Version:  10.0.19045\n> Python Version:  3.12.7 | packaged by Anaconda, Inc. | (main, Oct  4 2024, 13:1",
+        "repo": "langchain-ai/langchain",
+        "author_association": "NONE",
+        "user_login": "jiema3686-hue",
+        "created_at": "2025-11-28 09:22:03+00:00"
+      },
+      "true_label": 0,
+      "expected": {
+        "predicted_class": "stays_open_past_7d",
+        "probability": 0.477707,
+        "confidence_band": "low"
+      },
+      "index": 9469
+    },
+    {
+      "raw_input": {
+        "title": "Langchain-openai calling AzureChatOpenAI Deployment \u201co3-mini\u201d Returns 400 Error Due to Unsupported \u2018temperature\u2019 Parameter",
+        "body": "### Checked other resources\n\n- [x] I added a very descriptive title to this issue.\n- [x] I searched the LangChain documentation with the integrated search.\n- [x] I used the GitHub search to find a similar question and didn't find it.\n- [x] I am sure that this is a bug in LangChain rather than my code.\n- [x] The bug is not resolved by updating to the latest stable version of LangChain (or the specific integration package).\n\n### Example Code\n\n```from langchain_openai import AzureChatOpenAI\n\n# Sample settings for an o3-mini deployment\nsettings = {\n    \"GENERATOR_LLM_ENDPOINT\": \"https://example.cognitive.microsoft.com/\",\n    \"GENERATOR_LLM_API_KEY\": \"****\",  # Masked API key\n    \"GENERATOR_LLM_DEPLOYMENT_NAME\": \"o3-mini\",\n    \"GENERATOR_LLM_MODEL_NAME\": \"o3-mini\",\n    \"GENERATOR_LLM_API_VERSION\": \"2025-01-01-preview\",\n    \"GENERATOR_LLM_API_TYPE\": \"azure\",\n    \"GENERATOR_LLM_TEMPERATURE\": 0.7,\n}\n\nparams = {\n    \"azure_endpoint\": settings[\"GENERATOR_LLM_ENDPOINT\"],\n    \"deployment_name\": settings[\"GENERATOR_LLM_DEPLOYMENT_NAME\"],\n    \"openai_api_version\": settings[\"GENERATOR_LLM_API_VERSION\"],\n    \"openai_api_key\": settings[\"GENERATOR_LLM_API_KEY\"],\n    \"model_name\": settings[\"GENERATOR_LLM_MODEL_NAME\"],\n}\n\n# Conditional check to omit 'temperature' for o3-mini\nif \"o3-mini\" not in settings[\"GENERATOR_LLM_MODEL_NAME\"].lower():\n    params[\"temperature\"] = settings[\"GENERATOR_LLM_TEMPERATURE\"]\n\nllm = AzureChatOpenAI(**params)\nprint(\"LLM instantiated:\", llm)\n```\n\n### Error Message and Stack Trace (if applicable)\n\n**Describe the bug**\nWhen using the o3-mini deployment for evaluation, the API returns a 400 error stating:\n\n`Unsupported parameter: 'temperature' is not supported with this model.`\n\nDespite conditional logic in the code intended to omit the temperature parameter for o3-mini, the parameter is still being sent in some cases. This leads to repeated HTTP POST failures during evaluation.\n\nLink to AzureAI github issue:\nhttps://github.com/Azure/azure-sdk-for-python/issues/",
+        "repo": "langchain-ai/langchain",
+        "author_association": "NONE",
+        "user_login": "keyoumao",
+        "created_at": "2025-03-05 20:02:07+00:00"
+      },
+      "true_label": 1,
+      "expected": {
+        "predicted_class": "stays_open_past_7d",
+        "probability": 0.275985,
+        "confidence_band": "medium"
+      },
+      "index": 10016
+    },
+    {
+      "raw_input": {
+        "title": "Tool calling broken for Gemini with legacy agent",
+        "body": "### Checked other resources\n\n- [x] I added a very descriptive title to this issue.\n- [x] I searched the LangChain documentation with the integrated search.\n- [x] I used the GitHub search to find a similar question and didn't find it.\n- [x] I am sure that this is a bug in LangChain rather than my code.\n- [x] The bug is not resolved by updating to the latest stable version of LangChain (or the specific integration package).\n\n### Example Code\n\n```\nfrom langchain_google_genai import ChatGoogleGenerativeAI\nfrom langchain_core.prompts import ChatPromptTemplate\nfrom langchain.agents.agent import AgentExecutor\nfrom langchain.agents import create_tool_calling_agent\n\nmodel = ChatGoogleGenerativeAI(model=\"gemini-2.0-flash-exp\")\nprompt = ChatPromptTemplate.from_messages(\n        [\n            (\"system\", PROMPT_TEMPLATE),\n            (\"placeholder\", \"{chat_history}\"),\n            (\"human\", \"{input}\"),\n            (\"placeholder\", \"{agent_scratchpad}\"),\n        ]\n    )\ntools = [my_tool, ...]\n\nagent = create_tool_calling_agent(model, tools, prompt)\nagent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)\n\nresponse = agent_executor.invoke({\"input\": \"call my_tool\"})\n```\n\n### Error Message and Stack Trace (if applicable)\n\n`langchain_google_genai.chat_models.ChatGoogleGenerativeAIError: Invalid argument provided to Gemini: 400 * GenerateContentRequest.contents[2].parts[0].function_response.name: Name cannot be empty.`\n\n### Description\n\nTool calling with Gemini requires the tool name to be returned in the tool response, but for some reason `ToolMessage.name` is not being set.\n\n`ToolMessage.additional_kwargs` is set to: `{\"name\": \"my_tool\"}`, but this isn't used when building the message Parts to send to Gemini. \n\n### System Info\n\npython -m langchain_core.sys_info\n\nSystem Information\n------------------\n> OS:  Darwin\n> OS Version:  Darwin Kernel Version 23.6.0: Mon Jul 29 21:14:30 PDT 2024; root:xnu-10063.141.2~1/RELEASE_ARM64_T6000\n> Python Version:  3.11.9 (main, Jun 20 20",
+        "repo": "langchain-ai/langchain",
+        "author_association": "NONE",
+        "user_login": "Finndersen",
+        "created_at": "2025-01-24 21:23:59+00:00"
+      },
+      "true_label": 1,
+      "expected": {
+        "predicted_class": "stays_open_past_7d",
+        "probability": 0.427135,
+        "confidence_band": "low"
+      },
+      "index": 10166
+    }
+  ]
+}

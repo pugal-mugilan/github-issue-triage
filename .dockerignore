@@ -1,0 +1,11 @@
+.venv/
+.git/
+.idea/
+__pycache__/
+data/
+src/
+.env
+.env.example
+*.pyc
+test_pipeline.py
+test.py

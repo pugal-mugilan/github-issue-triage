@@ -212,3 +212,16 @@ Dependencies pinned in `requirements.txt`. Random seed = 42 for all splits and t
 - PROBLEM.md — problem framing and success criteria
 - DECISIONS.md — full decision log (DL-001 through DL-013)
 - DATANOTES.md — cleaning decisions and data audit
+
+## Latency (Containerized, CPU-only)
+
+| Metric | Value |
+|---|---|
+| Batch 50 issues (p50) | 123 ms |
+| Batch 50 issues (max) | 133 ms |
+| Single issue (p50) | 6.0 ms |
+| Single issue (p95) | 7.0 ms |
+| Single issue (p99) | 7.7 ms |
+
+Measured via `benchmark_latency.py` against Dockerized service (`python:3.14-slim`, CPU-only PyTorch).
+PROBLEM.md target: ≤ 500 ms for 50 issues → **PASS** (123 ms, 4× under budget).

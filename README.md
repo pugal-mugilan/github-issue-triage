@@ -1,78 +1,115 @@
-# Issue Triage Agent
+# GitHub Issue Triage
 
-Predicting which GitHub issues get resolved within 168 hours, across major
-Python open-source repositories. Phase 1 builds the classifier; Phase 2
-extends it into an agent that uses the classifier as a callable tool
-alongside RAG retrieval and web search.
+Predicts whether a newly opened GitHub issue will be resolved within 7 days, trained on real data from `pytorch/pytorch`, `langchain-ai/langchain`, and `huggingface/transformers`.
 
-> **Status:** Phase 1 in progress. Ingest pipeline complete. Cleaning,
-> feature engineering, and training are next.
+Built as a Phase 1 capstone — an end-to-end ML system designed from day one to be called as a tool by an LLM agent in Phase 2.
 
-## Problem
+## Why This Exists
 
-See [`PROBLEM.md`](PROBLEM.md) for the locked problem statement,
-target definition, evaluation strategy, and out-of-scope items.
+OSS maintainers spend 30–60 minutes per triage session deciding which issues to look at first. This classifier estimates the probability that a new issue will be closed-as-completed within 168 hours (7 days), so maintainers — or an LLM agent acting on their behalf — can prioritize quick-resolution issues during limited triage windows.
 
-## Design decisions
+Issue triage is a recognized product category (CodeRabbit, Sweep AI, Linear's AI triage, GitHub's built-in auto-triage). This project tackles the same problem with a lightweight structural classifier, with text features planned for v0.2.
 
-See [`DECISIONS.md`](DECISIONS.md) for the running ADR log. Every
-non-trivial design choice is recorded with its rationale and trade-offs.
+## Results
 
-## Layout
+| Criterion | Target | Actual | Status |
+|---|---|---|---|
+| In-domain F1 ≥ baseline + 0.15 | ≥ 0.5237 | 0.5432 | ✅ Pass |
+| In-domain Precision@5 | ≥ 0.70 | 0.60 | ❌ Fail |
+| OOD Precision@5 | ≥ 0.55 | 0.80 | ✅ Pass |
+| Model card published | — | MODEL_CARD.md | ✅ Pass |
+| API latency ≤ 500ms | — | — | ⏳ Week 12 |
 
-\`\`\`
-.
-├── src/                  # Pipeline scripts, run in numbered order
-│   ├── 01_ingest.py      # Scrape closed issues from GitHub API
-│   ├── 02_clean.py       # (next) Apply 168h filter, drop bots, dedupe
-│   ├── 03_features.py    # (later) Feature engineering
-│   └── 04_train.py       # (later) XGBoost training + eval
+**In-domain P@5 missed its threshold.** The 18 structural features lack the discriminative signal to reliably rank the top 5 issues. Two issues with similar body lengths, code blocks, and filing times are indistinguishable to the model — it classifies (positive vs negative) but can't rank within the positive group. This is a feature ceiling, not a model ceiling. Text features (TF-IDF, embeddings) are the fix path for v0.2.
+
+**OOD P@5 passed, but with a caveat.** The held-out repos (especially `fastapi` at 73.2% positive base rate) have easier target distributions. High OOD P@K partly reflects that, not superior generalization.
+
+## How It Works
+
+**Data:** 10,260 cleaned issues from 3 training repos, scraped via the GitHub REST API. 680 held-out OOD issues from `fastapi/fastapi` and `scikit-learn/scikit-learn` (never seen during training).
+
+**Features:** 18 leak-free structural features — body length, code block count, author history, repo identity, time-of-day, author association, and more. Every feature passes the time-travel test: it must be knowable at `issue.created_at` in production, without access to future data.
+
+**Model:** 2-layer neural network (PyTorch) with repo-weighted loss. Selected over logistic regression (F1=0.51), XGBoost (F1=0.52, failed stability gate), and an unweighted NN (F1=0.55 overall but langchain F1=0.24). Repo-weighting lifted the worst per-repo floor from 0.24 to 0.42 while maintaining overall F1=0.54.
+
+**Baselines:** Three-tier honest comparison — majority-class predictor (F1=0.00), coin-flip (F1=0.37), logistic regression (F1=0.51). The selected model beats all three.
+
+## Project Structure
+
+```
+github-issue-triage/
+├── src/
+│   ├── 01_ingest.py          # GitHub API scraper with pagination + rate limiting
+│   ├── 02_clean.py            # 7-stage cleaning pipeline → labeled parquet
+│   ├── 03_features.py         # 18 leak-free features, fit-on-train-only discipline
+│   ├── 04_baseline.py         # 3-tier baselines (majority, coin, LR)
+│   ├── 05_xgboost_model.py    # XGBoost with stability gate
+│   ├── 06_nn.py               # 2-layer NN with repo-weighted loss
+│   ├── 07_evaluate.py         # P@K evaluation, OOD eval, probability diagnostics
+│   ├── run_pipeline.py        # One-command orchestrator (seed-locked, reproducible)
+│   └── test_pipeline.py       # 17 smoke tests
 ├── data/
-│   ├── raw/              # Raw JSON per repo (gitignored)
-│   └── processed/        # cleaned.parquet, features.parquet (gitignored)
-├── models/               # Trained model artifacts (gitignored)
-├── PROBLEM.md
-├── DECISIONS.md
-└── MODEL_CARD.md         # (Day 5) Honest reporting of model behavior
-\`\`\`
+│   ├── raw/                   # Raw API scrapes (gitignored)
+│   └── processed/             # Cleaned parquets, train/test splits (gitignored)
+├── models/                    # Saved model, scaler, encoders (gitignored)
+├── PROBLEM.md                 # Problem framing: target definition, success criteria, scope
+├── DECISIONS.md               # 13 ADRs documenting every design choice
+├── MODEL_CARD.md              # Training data, metrics, known limitations, interface schema
+└── requirements.txt           # Pinned dependencies (torch, numpy, pandas, scikit-learn)
+```
 
-## Setup
+## Quick Start
 
-\`\`\`bash
-git clone git@github.com:pugal-mugilan/issue-triage-agent.git
-cd issue-triage-agent
+```bash
+# Clone
+git clone https://github.com/pugal-mugilan/github-issue-triage.git
+cd github-issue-triage
 
-python -m venv .venv
-source .venv/bin/activate
+# Install dependencies
 pip install -r requirements.txt
 
-cp .env.example .env
-# then edit .env and paste your GitHub PAT
-\`\`\`
+# Run the full pipeline (ingest → clean → features → train → evaluate)
+python src/run_pipeline.py
 
-Generate a PAT at https://github.com/settings/tokens with no scopes
-(public repo data only). Set expiration to 90 days.
+# Run smoke tests
+python -m pytest src/test_pipeline.py -v
+```
 
-## Running the pipeline
+**Note:** The ingestion step (`01_ingest.py`) requires a GitHub Personal Access Token in a `.env` file. See `.env.example` for the format. If you skip ingestion, the pipeline runs from cached parquet files in `data/`.
 
-\`\`\`bash
-# scrape ~30K closed issues across 5 repos (~10 minutes)
-python src/01_ingest.py
+## Reproducibility
 
-# (next) clean and apply observability filter
-python src/02_clean.py
-\`\`\`
+Random seeds are locked across Python, NumPy, and PyTorch. The pipeline runs as a single process (no subprocesses) to guarantee seed propagation. Two consecutive runs produce identical metrics.
 
-## Data sources
+## Key Design Decisions
 
-| Repo | Role |
-|---|---|
-| `huggingface/transformers` | Train |
-| `pytorch/pytorch` | Train |
-| `langchain-ai/langchain` | Train |
-| `fastapi/fastapi` | Held-out (OOD eval) |
-| `scikit-learn/scikit-learn` | Held-out (OOD eval) |
+Every meaningful choice is documented as an ADR in [DECISIONS.md](DECISIONS.md). Highlights:
 
-Train/OOD split is by repo, not by time within a repo. This lets us
-measure how well the model generalizes to libraries it has never seen,
-which matters more for the Phase 2 agent than within-repo accuracy.
+- **DL-001:** Real GitHub data instead of demo datasets — forces honest engineering on messy, dynamic data
+- **DL-002:** Multi-repo training with held-out OOD repos — enables defensible generalization claims
+- **DL-006:** Three-tier baseline ladder — majority-class → coin-flip → logistic regression, each must be beaten before moving to the next model
+- **DL-012:** Repo-weighted NN over unweighted NN — sacrificed 1 point of overall F1 to fix a broken per-repo floor (langchain 0.24 → 0.42)
+- **DL-013:** P@5 miss documented honestly — feature ceiling diagnosis, not threshold retrofit
+
+## Known Limitations
+
+- **No text features.** The model has no access to what the issue actually says — only structural signals. This is the root cause of the P@5 miss. Planned for v0.2.
+- **Python ecosystem only.** Trained on Python ML/dev-tool/web repos. Out of scope: Rust, mobile, frontend, non-Python.
+- **Small author overlap.** OOD repos have different contributor pools. Author history features are mostly zero for OOD predictions.
+- **No per-repo personalization.** All repos share one model. Per-repo fine-tuning deferred to a later phase.
+
+## What's Next
+
+- **v0.1 (this release):** Trained model, reproducible pipeline, honest evaluation
+- **v0.2 (Week 12):** FastAPI wrapper for agent tool calling, Docker, deployment to Hugging Face Spaces, text features to address P@5 miss
+- **Phase 2 (Week 14+):** This classifier becomes the first callable tool for a Production Agentic RAG system
+
+## Documentation
+
+- [PROBLEM.md](PROBLEM.md) — Target definition, prediction horizon, success criteria, feature constraints, scope
+- [DECISIONS.md](DECISIONS.md) — 13 Architecture Decision Records (DL-001 through DL-013)
+- [MODEL_CARD.md](MODEL_CARD.md) — Training data, performance metrics, known limitations, interface schema
+
+## Tech Stack
+
+Python · PyTorch · NumPy · pandas · scikit-learn · GitHub REST API
