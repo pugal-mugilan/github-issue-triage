@@ -1,0 +1,31 @@
+graph TD
+    subgraph training["Training Pipeline (offline — run_pipeline.py)"]
+        A["Raw GitHub Issues<br/><i>pytorch, langchain, transformers</i>"] --> B["Ingest + Clean<br/><i>01_ingest.py → 02_clean.py</i>"]
+        B --> C["Feature Engineering<br/><i>03_features.py — 18 features</i>"]
+        C --> D["Train NN<br/><i>06b_nn_weighted.py</i>"]
+        D --> E["Saved Artifacts<br/><i>nn_weighted_model.pt<br/>scaler.pkl · encoders.pkl</i>"]
+    end
+
+    subgraph serving["Serving Pipeline (online — Docker + FastAPI)"]
+        F["API Request<br/><i>IssueInput JSON</i>"] --> G["Pydantic Validation<br/><i>app/schemas.py</i>"]
+        G --> H["Feature Engineering<br/><i>app/features.py</i>"]
+        H --> I["NN Inference<br/><i>torch.no_grad()</i>"]
+        I --> J["Confidence Bands<br/><i>low / medium / high</i>"]
+        J --> K["API Response<br/><i>PredictionOutput JSON</i>"]
+    end
+
+    E -- "loaded at startup<br/>(lifespan event)" --> H
+    E -- "weights loaded" --> I
+
+    subgraph endpoints["Endpoints"]
+        L["/predict — single issue"]
+        M["/predict/batch — batch (p50=123ms)"]
+        N["/model/info — metadata"]
+        O["/health — liveness check"]
+    end
+
+    subgraph quality["Quality Gates"]
+        P["Regression Tests (31 pass)"]
+        Q["Golden Set (25 issues, F1≥0.39)"]
+        R["Latency Benchmark (≤500ms)"]
+    end

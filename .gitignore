@@ -31,3 +31,6 @@ models/*
 Thumbs.db
 *.swp
 !data/raw/_metadata.json
+!models/encoders.pkl
+!models/scaler.pkl
+!models/nn_weighted_model.pt
