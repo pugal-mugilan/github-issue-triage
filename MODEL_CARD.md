@@ -126,7 +126,7 @@ All features pass the time-travel test: they are knowable at `issue.created_at` 
 | In-domain F1 ≥ baseline + 0.15 | ≥ 0.3737 + 0.15 = 0.5237 | 0.5432 | ✅ Pass |
 | In-domain P@5 | ≥ 0.70 | 0.60 | ❌ Fail |
 | OOD P@5 | ≥ 0.55 | 0.80 | ✅ Pass |
-| API latency ≤ 500ms for 50 issues | — | Not yet measured (Week 12) | ⏳ Pending |
+| API latency ≤ 500ms for 50 issues | ≤ 500 ms | 123 ms (p50, batch 50) | ✅ Pass |
 | Model card published | — | This document | ✅ Pass |
 
 ---
